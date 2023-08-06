@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "bayesian-optimization"
+version = "0.1.0"
+description = ""
+authors = ["Justin Pyron <justinpyron@gmail.com>"]
+readme = "README.md"
+packages = [{include = "bayesian_optimization"}]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+numpy = "^1.25.2"
+pandas = "^2.0.3"
+scipy = "^1.11.1"
+matplotlib = "^3.7.2"
+seaborn = "^0.12.2"
+plotly = "^5.15.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
