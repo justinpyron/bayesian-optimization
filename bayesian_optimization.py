@@ -5,7 +5,6 @@ from scipy.stats import norm
 from typing import Callable
 
 
-# TODO: convert strings into functions: sympy.sympify()
 # TODO: understand why initializing with 1 leads to non-invertible matrix
 
 
@@ -23,7 +22,7 @@ class BayesianOptimizer:
         self.function = function
         self.domain_bounds = domain_bounds
         self.kernel_bandwidth = kernel_bandwidth
-        self.domain_samples = self.uniformly_sample_domain(2000)
+        self.domain_samples = self.uniformly_sample_domain(500)
         # Initialize optimizer with 2 samples
         self.sample_points = self.uniformly_sample_domain(number_of_samples=2)
         self.sample_values = np.array([self.function(x) for x in self.sample_points])

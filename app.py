@@ -1,10 +1,10 @@
-import streamlit as st
-import numpy as np
-from bayesian_optimization import BayesianOptimizer
-import matplotlib.pyplot as plt
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
 from typing import Callable
+
+import numpy as np
+import streamlit as st
+
+from bayesian_optimization import BayesianOptimizer
+from make_plot import make_plot
 
 
 FUNCTION_ZOO = {
@@ -16,9 +16,19 @@ FUNCTION_ZOO = {
     'Function 2': {
         'function': lambda x: (- 1e-5 * (x + 80) * (x + 30) * (x - 20) * (x - 95) + 1000)[0],
         'domain_bounds': [(-100,100)],
-        'kernel_bandwidth': 20,
+        'kernel_bandwidth': 30,
     }
 }
+
+
+def initialize_optimizer() -> None:
+    '''Returns initialized BayesianOptimizer object'''
+    function_specs = FUNCTION_ZOO[st.session_state.function_selection]
+    st.session_state.optimizer = BayesianOptimizer(
+        function=function_specs['function'],
+        domain_bounds=function_specs['domain_bounds'],
+        kernel_bandwidth=function_specs['kernel_bandwidth'],
+    )
 
 
 st.set_page_config(
@@ -30,155 +40,22 @@ st.write(
     '<style>div.block-container{padding-top:1rem;}</style>',
     unsafe_allow_html=True,
 ) # Reduce whitespace above title 
-
-
-def make_plot(
-    optimizer: BayesianOptimizer,
-    step_to_display: int,
-) -> go.Figure:
-    domain = np.sort(optimizer.domain_samples, axis=0)
-    true_function = np.array([optimizer.function(z) for z in domain])
-    expected_improvement = np.array([
-        optimizer.compute_expected_improvement(z, step_to_display) for z in domain
-    ])
-    posterior = [optimizer.compute_posterior(z, step_to_display) for z in domain]
-    posterior_mean = np.array([_mean for (_mean, _var) in posterior])
-    posterior_var = np.array([_var for (_mean, _var) in posterior])
-    lower_bound = posterior_mean - 1.96*np.sqrt(posterior_var)
-    upper_bound = posterior_mean + 1.96*np.sqrt(posterior_var)
-
-    # Make figure
-    fig = make_subplots(
-        rows=2,
-        cols=1,
-        row_heights=[3,1],
-        shared_xaxes=True,
-    )
-    fig.update_layout(
-        height=500,
-        margin=dict(l=0, r=0, t=0, b=0),
-        legend=dict(
-            orientation='h',
-            xanchor='center',
-            x=0.5,
-        ),
-        xaxis_range=[
-            optimizer.domain_bounds[0][0],
-            optimizer.domain_bounds[0][1],
-        ]
-    )
-    fig.update_yaxes(range=[
-        true_function.min() - 0.5*(true_function.max() - true_function.min()),
-        true_function.max() + 0.5*(true_function.max() - true_function.min()),
-    ], row=1, col=1)
-
-    # Bottom chart
-    fig.append_trace(go.Scatter(
-        x=domain[:,0],
-        y=expected_improvement,
-        name='Expected Improvement',
-        line=dict(
-            color='springgreen',
-            width=4,
-        ),
-        hoverlabel=dict(namelength=-1),
-    ), row=2, col=1)
-
-    # Top chart
-    fig.append_trace(go.Scatter(
-        name='Estimated Function Uncertainty Lower Bound',
-        x=domain[:,0],
-        y=lower_bound,
-        line=dict(
-            color='dodgerblue',
-            width=1,
-        ),
-        hoverlabel=dict(namelength=-1),
-        showlegend=False,
-    ), row=1, col=1)
-    fig.append_trace(go.Scatter(
-        name='Estimated Function Uncertainty Upper Bound',
-        x=domain[:,0],
-        y=upper_bound,
-        line=dict(
-            color='dodgerblue',
-            width=1,
-        ),
-        hoverlabel=dict(namelength=-1),
-        showlegend=False,
-        fill='tonexty',
-        fillcolor='rgba(30,144,255,0.2)', # dodgerblue with less opacity
-    ), row=1, col=1)
-    fig.append_trace(go.Scatter(
-        name='Estimated Function',
-        x=domain[:,0],
-        y=posterior_mean,
-        line=dict(
-            color='dodgerblue',
-            width=4,
-        ),
-        hoverlabel=dict(namelength=-1),
-    ), row=1, col=1)
-    fig.append_trace(go.Scatter(
-        name='True Function',
-        x=domain[:,0],
-        y=true_function,
-        line=dict(
-            color='Orange',
-            width=4,
-        ),
-        hoverlabel=dict(namelength=-1),
-    ), row=1, col=1)
-    fig.append_trace(go.Scatter(
-        name='Oberved Values (label = order of observation)',
-        x=optimizer.sample_points[:,0][:step_to_display],
-        y=optimizer.sample_values[:step_to_display],
-        text=np.arange(1,len(optimizer.sample_values)+1).astype(str),
-        mode='markers+text',
-        marker=dict(
-            color='Orange',
-            size=18,
-            line=dict(
-                color='DarkOrange',
-                # color='lightslategray',
-                width=1.5
-            )
-        ),
-        hoverlabel=dict(namelength=-1),
-    ), row=1, col=1)
-
-    return fig
-
-
-def initialize_optimizer(
-    function: Callable[[np.array], float],
-    domain_bounds: list[tuple[float, float]],
-    kernel_bandwidth: float,
-) -> None:
-    '''Returns initialized BayesianOptimizer object'''
-    st.session_state.optimizer = BayesianOptimizer(
-        function=function,
-        domain_bounds=domain_bounds,
-        kernel_bandwidth=kernel_bandwidth,
-    )
-
 st.title('Bayesian Optimization 🥇')
 st.write('👉 Learn how it works on [GitHub](https://github.com/justinpyron/bayesian-optimization)')
+if 'function_selection' not in st.session_state:
+    st.session_state.function_selection = 'Function 1'
+if 'optimizer' not in st.session_state:
+    initialize_optimizer()
 function_selectbox = st.selectbox(
-    label='Select a toy function',
+    label='Select a function to optimize',
     options=[
         'Function 1',
         'Function 2',
     ],
 )
-function_specs = FUNCTION_ZOO[function_selectbox]
-
-if 'optimizer' not in st.session_state:
-    initialize_optimizer(
-        function=function_specs['function'],
-        domain_bounds=function_specs['domain_bounds'],
-        kernel_bandwidth=function_specs['kernel_bandwidth'],
-    )
+if st.session_state.function_selection != function_selectbox:
+    st.session_state.function_selection = function_selectbox
+    initialize_optimizer()
 
 col_bottoms, col_slider = st.columns(spec=[1,2], gap='medium')
 with col_bottoms:
@@ -186,11 +63,6 @@ with col_bottoms:
         label='Reset',
         on_click=initialize_optimizer,
         use_container_width=True,
-        kwargs={
-            'function': function_specs['function'],
-            'domain_bounds': function_specs['domain_bounds'],
-            'kernel_bandwidth': function_specs['kernel_bandwidth'],
-        }
     )
     button_step = st.button(
         label='Draw Sample',
