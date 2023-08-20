@@ -7,13 +7,16 @@ readme = "README.md"
 packages = [{include = "bayesian_optimization"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
 numpy = "^1.25.2"
 pandas = "^2.0.3"
 scipy = "^1.11.1"
 matplotlib = "^3.7.2"
 seaborn = "^0.12.2"
 plotly = "^5.15.0"
+jupyterlab = "^4.0.4"
+ipykernel = "^6.25.0"
+streamlit = "^1.25.0"
 
 
 [build-system]
