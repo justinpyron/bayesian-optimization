@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["Justin Pyron <justinpyron@gmail.com>"]
 readme = "README.md"
-packages = [{include = "bayesian_optimization"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
