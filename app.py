@@ -4,12 +4,21 @@ from bayesian_optimization import BayesianOptimizer
 import matplotlib.pyplot as plt
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+from typing import Callable
 
 
-# TOY_FUNCTION = lambda x: 20*np.sin(2*x[0]) - 3*x[0]**2 + x[0]
-TOY_FUNCTION = lambda x: (20*np.sin(2*x) - 3*x**2 + x)[0]
-BOUNDS = [(-5,5)]
-KERNEL_BANDWIDTH = 1
+FUNCTION_ZOO = {
+    'Function 1': {
+        'function': lambda x: (20*np.sin(2*x) - 3*x**2 + x)[0],
+        'domain_bounds': [(-5,5)],
+        'kernel_bandwidth': 1,
+    },
+    'Function 2': {
+        'function': lambda x: (- 1e-5 * (x + 80) * (x + 30) * (x - 20) * (x - 95) + 1000)[0],
+        'domain_bounds': [(-100,100)],
+        'kernel_bandwidth': 20,
+    }
+}
 
 
 st.set_page_config(
@@ -17,151 +26,175 @@ st.set_page_config(
     page_icon='🥇',
     layout='wide',
 )
+st.write(
+    '<style>div.block-container{padding-top:1rem;}</style>',
+    unsafe_allow_html=True,
+) # Reduce whitespace above title 
 
 
-
-def make_plot(optimizer: BayesianOptimizer) -> go.Figure:
-
-    # TODO: add argument for which step to display
-
+def make_plot(
+    optimizer: BayesianOptimizer,
+    step_to_display: int,
+) -> go.Figure:
     domain = np.sort(optimizer.domain_samples, axis=0)
-    posterior = [optimizer.compute_posterior(z) for z in domain]
-    mu_list = np.array([p[0] for p in posterior])
-    var_list = np.array([p[1] for p in posterior])
-    l = mu_list - 1.96*np.sqrt(var_list)
-    u = mu_list + 1.96*np.sqrt(var_list)
-    EI_list = np.array([optimizer.compute_expected_improvement(z) for z in domain])
+    true_function = np.array([optimizer.function(z) for z in domain])
+    expected_improvement = np.array([
+        optimizer.compute_expected_improvement(z, step_to_display) for z in domain
+    ])
+    posterior = [optimizer.compute_posterior(z, step_to_display) for z in domain]
+    posterior_mean = np.array([_mean for (_mean, _var) in posterior])
+    posterior_var = np.array([_var for (_mean, _var) in posterior])
+    lower_bound = posterior_mean - 1.96*np.sqrt(posterior_var)
+    upper_bound = posterior_mean + 1.96*np.sqrt(posterior_var)
 
     # Make figure
     fig = make_subplots(
         rows=2,
         cols=1,
-        row_heights=[2,1],
+        row_heights=[3,1],
+        shared_xaxes=True,
     )
-    fig.update_layout(height=600, width=1200)
-    fig.update_layout(legend=dict(
-        orientation='h',
-        xanchor='center',
-        x=0.5,
-    ))
+    fig.update_layout(
+        height=500,
+        margin=dict(l=0, r=0, t=0, b=0),
+        legend=dict(
+            orientation='h',
+            xanchor='center',
+            x=0.5,
+        ),
+        xaxis_range=[
+            optimizer.domain_bounds[0][0],
+            optimizer.domain_bounds[0][1],
+        ]
+    )
+    fig.update_yaxes(range=[
+        true_function.min() - 0.5*(true_function.max() - true_function.min()),
+        true_function.max() + 0.5*(true_function.max() - true_function.min()),
+    ], row=1, col=1)
 
     # Bottom chart
     fig.append_trace(go.Scatter(
         x=domain[:,0],
-        y=EI_list,
+        y=expected_improvement,
         name='Expected Improvement',
         line=dict(
-            color='darkgreen',
-            width=3,
+            color='springgreen',
+            width=4,
         ),
         hoverlabel=dict(namelength=-1),
     ), row=2, col=1)
 
-
     # Top chart
     fig.append_trace(go.Scatter(
+        name='Estimated Function Uncertainty Lower Bound',
         x=domain[:,0],
-        y=l,
+        y=lower_bound,
         line=dict(
             color='dodgerblue',
             width=1,
         ),
-        name='Estimated Function Uncertainty Lower Bound',
-        showlegend=False,
         hoverlabel=dict(namelength=-1),
+        showlegend=False,
     ), row=1, col=1)
-
     fig.append_trace(go.Scatter(
+        name='Estimated Function Uncertainty Upper Bound',
         x=domain[:,0],
-        y=u,
+        y=upper_bound,
+        line=dict(
+            color='dodgerblue',
+            width=1,
+        ),
+        hoverlabel=dict(namelength=-1),
+        showlegend=False,
         fill='tonexty',
         fillcolor='rgba(30,144,255,0.2)', # dodgerblue with less opacity
-        line=dict(
-            color='dodgerblue',
-            width=1,
-        ),
-        name='Estimated Function Uncertainty Upper Bound',
-        showlegend=False,
-        hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
-
     fig.append_trace(go.Scatter(
-        x=domain[:,0],
-        y=mu_list,
         name='Estimated Function',
+        x=domain[:,0],
+        y=posterior_mean,
         line=dict(
             color='dodgerblue',
-            width=3,
+            width=4,
         ),
         hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
-
     fig.append_trace(go.Scatter(
-        x=domain[:,0],
-        y=np.array([optimizer.function(z) for z in domain]),
         name='True Function',
+        x=domain[:,0],
+        y=true_function,
         line=dict(
             color='Orange',
-            width=3,
+            width=4,
         ),
         hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
-
     fig.append_trace(go.Scatter(
-        x=optimizer.samples[:,0],
-        y=optimizer.sample_values,
-        mode='markers',
-        name='Oberved Values',
+        name='Oberved Values (label = order of observation)',
+        x=optimizer.sample_points[:,0][:step_to_display],
+        y=optimizer.sample_values[:step_to_display],
+        text=np.arange(1,len(optimizer.sample_values)+1).astype(str),
+        mode='markers+text',
         marker=dict(
             color='Orange',
-            size=15,
+            size=18,
             line=dict(
                 color='DarkOrange',
-                width=2
+                # color='lightslategray',
+                width=1.5
             )
         ),
         hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
 
-
     return fig
 
 
-
-
-
-
-
-def initialize_optimizer() -> None:
+def initialize_optimizer(
+    function: Callable[[np.array], float],
+    domain_bounds: list[tuple[float, float]],
+    kernel_bandwidth: float,
+) -> None:
     '''Returns initialized BayesianOptimizer object'''
     st.session_state.optimizer = BayesianOptimizer(
-        function=TOY_FUNCTION,
-        domain_bounds=BOUNDS,
-        kernel_bandwidth=KERNEL_BANDWIDTH,
+        function=function,
+        domain_bounds=domain_bounds,
+        kernel_bandwidth=kernel_bandwidth,
     )
-
-
-if 'optimizer' not in st.session_state:
-    initialize_optimizer()
-
 
 st.title('Bayesian Optimization 🥇')
 st.write('👉 Learn how it works on [GitHub](https://github.com/justinpyron/bayesian-optimization)')
+function_selectbox = st.selectbox(
+    label='Select a toy function',
+    options=[
+        'Function 1',
+        'Function 2',
+    ],
+)
+function_specs = FUNCTION_ZOO[function_selectbox]
 
-col_reset, col_step, col_slider = st.columns(spec=[1,1,3], gap='medium')
+if 'optimizer' not in st.session_state:
+    initialize_optimizer(
+        function=function_specs['function'],
+        domain_bounds=function_specs['domain_bounds'],
+        kernel_bandwidth=function_specs['kernel_bandwidth'],
+    )
 
-with col_reset:
+col_bottoms, col_slider = st.columns(spec=[1,2], gap='medium')
+with col_bottoms:
     button_reset = st.button(
         label='Reset',
-        help='Reinitialize the Optimizer',
         on_click=initialize_optimizer,
         use_container_width=True,
+        kwargs={
+            'function': function_specs['function'],
+            'domain_bounds': function_specs['domain_bounds'],
+            'kernel_bandwidth': function_specs['kernel_bandwidth'],
+        }
     )
-with col_step:
     button_step = st.button(
         label='Draw Sample',
-        help='Take a sample at the point that maximizes Expected Improvement',
-        on_click=st.session_state.optimizer.step,
+        on_click=st.session_state.optimizer.take_step,
         type='primary',
         use_container_width=True,
     )
@@ -172,13 +205,6 @@ with col_slider:
         max_value=len(st.session_state.optimizer.sample_values),
         value=len(st.session_state.optimizer.sample_values),
     )
-st.write('Sample values:')
-st.write(st.session_state.optimizer.sample_values)
-st.write(st.session_state.optimizer.samples.shape)
-st.write(st.session_state.optimizer.samples)
 
-figure = make_plot(st.session_state.optimizer)
+figure = make_plot(st.session_state.optimizer, step_to_display=slider)
 st.plotly_chart(figure, use_container_width=True)
-
-
-

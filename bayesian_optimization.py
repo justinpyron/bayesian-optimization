@@ -2,10 +2,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+from typing import Callable
 
 
 # TODO: convert strings into functions: sympy.sympify()
-
 # TODO: understand why initializing with 1 leads to non-invertible matrix
 
 
@@ -16,7 +16,7 @@ class BayesianOptimizer:
     '''
     def __init__(
         self,
-        function,
+        function: Callable[[np.array], float],
         domain_bounds: list[tuple[float, float]],
         kernel_bandwidth: float,
     ):
@@ -24,9 +24,9 @@ class BayesianOptimizer:
         self.domain_bounds = domain_bounds
         self.kernel_bandwidth = kernel_bandwidth
         self.domain_samples = self.uniformly_sample_domain(2000)
-        # Initialize optimizer with 1 sample
-        self.samples = self.uniformly_sample_domain(number_of_samples=2)
-        self.sample_values = np.array([self.function(x) for x in self.samples])
+        # Initialize optimizer with 2 samples
+        self.sample_points = self.uniformly_sample_domain(number_of_samples=2)
+        self.sample_values = np.array([self.function(x) for x in self.sample_points])
 
 
     def uniformly_sample_domain(
@@ -75,6 +75,7 @@ class BayesianOptimizer:
     def compute_posterior(
         self,
         sample_point: np.array,
+        step: int = None,
     ) -> tuple[np.array, np.array]:
         '''
         Compute the mean and variance of a sample point, conditional on samples seen thus far.
@@ -92,15 +93,16 @@ class BayesianOptimizer:
             x_1 = sample_point
             x_2 = observed_values
         '''
-        observed_values = self.sample_values
+        observed_samples = self.sample_points[:step]
+        observed_values = self.sample_values[:step]
         mean_1 = observed_values.mean()
         mean_2 = observed_values.mean() * np.ones_like(observed_values)
         var_1_1 = self.kernel(sample_point, sample_point)
         var_1_2 = var_2_1 = np.array([
-            self.kernel(sample_point, x) for x in self.samples
+            self.kernel(sample_point, x) for x in observed_samples
         ])
         var_2_2 = np.array([
-            [self.kernel(x, y) for x in self.samples] for y in self.samples
+            [self.kernel(x, y) for x in observed_samples] for y in observed_samples
         ])
         mean_tilde = mean_1 + var_1_2.dot(
             np.linalg.solve(var_2_2, observed_values - mean_2)
@@ -111,16 +113,14 @@ class BayesianOptimizer:
         return mean_tilde, var_tilde + 1e-5  # Add small value for numerical stability
 
 
-        # TODO: what happens when self.samples is None? --> Ensure that the next sample is uniformly randomly sampled if this is the case
-
-
     def compute_expected_improvement(
         self,
         point: np.array,
+        step: int = None,
     ) -> float:
         '''Compute expected improvement over highest observed point'''
-        best_yet = self.sample_values.max()
-        mean, variance = self.compute_posterior(point)
+        best_yet = self.sample_values[:step].max()
+        mean, variance = self.compute_posterior(point, step)
         st_dev = np.sqrt(variance)
         if st_dev > 1e-5:
             Z = (mean - best_yet) / st_dev
@@ -129,14 +129,14 @@ class BayesianOptimizer:
             return np.maximum(0, mean - best_yet)
 
 
-    def step(self) -> None:
+    def take_step(self) -> None:
         '''Take a sample at the point that maximizes Expected Improvement'''
         expected_improvement = np.array([
             self.compute_expected_improvement(z) for z in self.domain_samples
         ])
         next_sample = self.domain_samples[np.argmax(expected_improvement)]
-        self.samples = np.append(
-            self.samples,
+        self.sample_points = np.append(
+            self.sample_points,
             np.expand_dims(next_sample, axis=0),
             axis=0,
         )
