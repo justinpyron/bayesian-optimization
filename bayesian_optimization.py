@@ -5,9 +5,6 @@ from scipy.stats import norm
 from typing import Callable
 
 
-# TODO: understand why initializing with 1 leads to non-invertible matrix
-
-
 class BayesianOptimizer:
     '''
     Class for performing Bayesian Optimization.
@@ -23,8 +20,8 @@ class BayesianOptimizer:
         self.domain_bounds = domain_bounds
         self.kernel_bandwidth = kernel_bandwidth
         self.domain_samples = self.uniformly_sample_domain(500)
-        # Initialize optimizer with 2 samples
-        self.sample_points = self.uniformly_sample_domain(number_of_samples=2)
+        # Initialize optimizer with one sample
+        self.sample_points = self.uniformly_sample_domain(number_of_samples=1)
         self.sample_values = np.array([self.function(x) for x in self.sample_points])
 
 
@@ -40,7 +37,7 @@ class BayesianOptimizer:
 
     def compute_sample_variance(self) -> float:
         '''Compute the variance of function values observed thus far'''
-        return self.sample_values.var()
+        return self.sample_values.var() if len(self.sample_values) > 1 else 1
 
 
     def kernel(
@@ -143,4 +140,3 @@ class BayesianOptimizer:
             self.sample_values,
             self.function(next_sample),
         )
-

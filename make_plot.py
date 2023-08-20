@@ -1,8 +1,6 @@
 import numpy as np
-
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-
+from plotly.subplots import make_subplots
 from bayesian_optimization import BayesianOptimizer
 
 
@@ -27,6 +25,7 @@ def make_plot(
         cols=1,
         row_heights=[3,1],
         shared_xaxes=True,
+        vertical_spacing = 0,
     )
     fig.update_layout(
         height=500,
@@ -53,7 +52,7 @@ def make_plot(
         name='Expected Improvement',
         line=dict(
             color='springgreen',
-            width=4,
+            width=3,
         ),
         hoverlabel=dict(namelength=-1),
     ), row=2, col=1)
@@ -65,7 +64,7 @@ def make_plot(
         y=lower_bound,
         line=dict(
             color='dodgerblue',
-            width=1,
+            width=0.5,
         ),
         hoverlabel=dict(namelength=-1),
         showlegend=False,
@@ -76,7 +75,7 @@ def make_plot(
         y=upper_bound,
         line=dict(
             color='dodgerblue',
-            width=1,
+            width=0.5,
         ),
         hoverlabel=dict(namelength=-1),
         showlegend=False,
@@ -89,7 +88,7 @@ def make_plot(
         y=posterior_mean,
         line=dict(
             color='dodgerblue',
-            width=4,
+            width=3,
         ),
         hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
@@ -99,7 +98,7 @@ def make_plot(
         y=true_function,
         line=dict(
             color='Orange',
-            width=4,
+            width=5,
         ),
         hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
@@ -120,5 +119,12 @@ def make_plot(
         ),
         hoverlabel=dict(namelength=-1),
     ), row=1, col=1)
+
+    fig.add_vline(
+        x=domain[np.argmax(expected_improvement)][0],
+        line_width=3,
+        line_dash='dash',
+        line_color='springgreen',
+    )
 
     return fig

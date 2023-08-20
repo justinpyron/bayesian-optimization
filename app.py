@@ -1,8 +1,6 @@
 from typing import Callable
-
 import numpy as np
 import streamlit as st
-
 from bayesian_optimization import BayesianOptimizer
 from make_plot import make_plot
 
@@ -56,9 +54,8 @@ function_selectbox = st.selectbox(
 if st.session_state.function_selection != function_selectbox:
     st.session_state.function_selection = function_selectbox
     initialize_optimizer()
-
-col_bottoms, col_slider = st.columns(spec=[1,2], gap='medium')
-with col_bottoms:
+col_buttons, col_slider = st.columns(spec=[1,2], gap='medium')
+with col_buttons:
     button_reset = st.button(
         label='Reset',
         on_click=initialize_optimizer,
@@ -71,12 +68,14 @@ with col_bottoms:
         use_container_width=True,
     )
 with col_slider:
-    slider = st.slider(
-        label='Step',
-        min_value=1,
-        max_value=len(st.session_state.optimizer.sample_values),
-        value=len(st.session_state.optimizer.sample_values),
-    )
-
-figure = make_plot(st.session_state.optimizer, step_to_display=slider)
+    if len(st.session_state.optimizer.sample_values) > 1:
+        step_to_display = st.slider(
+            label='Step',
+            min_value=1,
+            max_value=len(st.session_state.optimizer.sample_values),
+            value=len(st.session_state.optimizer.sample_values),
+        )
+    else:
+        step_to_display = 1
+figure = make_plot(st.session_state.optimizer, step_to_display)
 st.plotly_chart(figure, use_container_width=True)
