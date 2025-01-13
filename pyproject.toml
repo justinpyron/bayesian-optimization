@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Justin Pyron <justinpyron@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.9.7 || >3.9.7,<3.13"
@@ -16,7 +17,6 @@ plotly = "^5.15.0"
 jupyterlab = "^4.0.4"
 ipykernel = "^6.25.0"
 streamlit = "^1.25.0"
-
 
 [build-system]
 requires = ["poetry-core"]
