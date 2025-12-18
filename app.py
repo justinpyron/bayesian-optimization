@@ -40,9 +40,18 @@ st.write(
     unsafe_allow_html=True,
 )  # Reduce whitespace above title
 st.title("Bayesian Optimization 🥇")
-st.write(
-    "👉 Learn how it works on [GitHub](https://github.com/justinpyron/bayesian-optimization)"
-)
+with st.expander("What is this app?"):
+    st.write(
+        """
+        This app demonstrates **Bayesian optimization**, a technique for finding the maximum
+        of black-box functions that are expensive to evaluate. It models unknown function values using a posterior
+        Gaussian distribution based on observed samples, and uses expected improvement to intelligently decide where to sample next.
+
+        Learn more: [Bayesian Optimization (Wikipedia)](https://en.wikipedia.org/wiki/Bayesian_optimization)
+
+        Source code 👉 [GitHub](https://github.com/justinpyron/bayesian-optimization)
+        """
+    )
 if "function_selection" not in st.session_state:
     st.session_state.function_selection = "Function 1"
 if "optimizer" not in st.session_state:
